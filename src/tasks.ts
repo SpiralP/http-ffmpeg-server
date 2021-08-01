@@ -40,6 +40,18 @@ process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 process.on("SIGHUP", shutdown);
 
+function escapeFilter(s: string) {
+  // https://ffmpeg.org/ffmpeg-filters.html#Notes-on-filtergraph-escaping
+  return s
+    .replace(/\\/g, "\\\\\\\\")
+    .replace(/\'/g, "\\\\\\'")
+    .replace(/\:/g, "\\\\:")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/\,/g, "\\,")
+    .replace(/\;/g, "\\;");
+}
+
 async function createTask(fullPath: string): Promise<Task | undefined> {
   console.log(`starting new ffmpeg for ${fullPath}`);
 
@@ -58,11 +70,12 @@ async function createTask(fullPath: string): Promise<Task | undefined> {
     "-c:a",
     "aac",
     "-vf",
-    `subtitles=${fullPath}`,
+    `subtitles=filename=${escapeFilter(fullPath)}`,
     "-f",
     "mp4",
     "pipe:3",
   ];
+  console.log(args.join('" "'));
 
   const ffmpegProcess = spawn(ffmpeg, args, {
     // cwd: this.dir.path,

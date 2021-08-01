@@ -6,7 +6,7 @@ import { exists } from "./utils";
 
 export function useMedia(app: Express, dirPath: string) {
   app.all("*", async (request, response) => {
-    const safePath = path.normalize(request.path).slice(1);
+    const safePath = path.normalize(decodeURIComponent(request.path)).slice(1);
     if (safePath.startsWith(".") || safePath.startsWith("/")) {
       response.status(404);
       response.end();

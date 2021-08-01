@@ -29,7 +29,7 @@ function App({ path, filenames }: { path: string; filenames: string[] }) {
           }}
         >
           {filenames.map((name) => (
-            <a key={name} href={name}>
+            <a key={name} href={encodeURIComponent(name)}>
               {name}
             </a>
           ))}
