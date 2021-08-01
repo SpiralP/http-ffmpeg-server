@@ -10,4 +10,7 @@ require("esbuild").buildSync({
   format: "cjs",
   outfile: "dist/index.js",
   external: ["ffmpeg-static"],
+  banner: {
+    js: "#!/usr/bin/env node",
+  },
 });

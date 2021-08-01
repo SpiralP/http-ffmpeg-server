@@ -1,8 +1,10 @@
 {
   "name": "http-ffmpeg",
   "version": "1.0.0",
-  "main": "dist/index.js",
   "license": "MIT",
+  "bin": {
+    "http-ffmpeg": "./dist/index.js"
+  },
   "scripts": {
     "start": "node ./dist/index.js",
     "typecheck": "tsc --noEmit",
