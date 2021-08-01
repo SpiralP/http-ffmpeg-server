@@ -11,7 +11,7 @@ const app = express();
 // for redirecting /reencode/id -> /reencode/id/
 app.set("strict routing", true);
 
-useDirectoryIndex(app);
+useDirectoryIndex(app, dirPath);
 useMedia(app, dirPath);
 
 // default route
