@@ -120,3 +120,6 @@ dist
 .pnp.*
 
 # End of Node.gitignore
+
+/*.mkv
+/*.mp4
