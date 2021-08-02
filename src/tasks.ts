@@ -7,7 +7,7 @@ import pump from "pump";
 import { Readable } from "stream";
 import tmp from "tmp";
 import { shutdown as shutdownExpress } from "./express";
-import { commonOptions } from "./ffmpeg";
+import { commonOptions, mp4Options, webmOptions } from "./ffmpeg";
 import { sleep } from "./utils";
 
 const isPkg =
@@ -106,7 +106,7 @@ function escapeFilter(s: string) {
     .replace(/\;/g, "\\;");
 }
 
-async function createTask(fullPath: string): Promise<Task> {
+async function createTask(fullPath: string, useWebm: boolean): Promise<Task> {
   console.log(`starting ffmpeg for "${fullPath}"`);
 
   const args: string[] = [
@@ -118,21 +118,7 @@ async function createTask(fullPath: string): Promise<Task> {
     "-1",
     "-map_metadata",
     "-1",
-    "-c:v",
-    "libx264",
-    "-pix_fmt",
-    "yuv420p",
-    "-movflags",
-    "+faststart+frag_keyframe+empty_moov",
-    // quality
-    "-crf",
-    "20",
-    "-c:a",
-    "aac",
-    // "-vf",
-    // `subtitles=filename=${escapeFilter(fullPath)}`,
-    "-f",
-    "mp4",
+    ...(useWebm ? webmOptions : mp4Options),
     "pipe:3",
   ];
   // console.log(`"${args.join('" "')}"`);
@@ -168,21 +154,25 @@ async function createTask(fullPath: string): Promise<Task> {
   };
 }
 
-export async function startTask(fullPath: string) {
-  const [ffmpegProcess] = await tasksLock.acquire(fullPath, async () => {
-    if (!tasks[fullPath]) {
-      const task = await createTask(fullPath);
-      tasks[fullPath] = task;
+export async function startTask(fullPath: string, useWebm: boolean) {
+  const key = `${useWebm}${fullPath}`;
+
+  const [ffmpegProcess] = await tasksLock.acquire(key, async () => {
+    if (!tasks[key]) {
+      const task = await createTask(fullPath, useWebm);
+      tasks[key] = task;
     }
-    return [tasks[fullPath]!.ffmpegProcess];
+    return [tasks[key]!.ffmpegProcess];
   });
 
   await Promise.race([sleep(1000), ffmpegProcess]);
 }
 
-export async function createReadStream(fullPath: string) {
-  return await tasksLock.acquire(fullPath, async () => {
-    const task = tasks[fullPath];
+export async function createReadStream(fullPath: string, useWebm: boolean) {
+  const key = `${useWebm}${fullPath}`;
+
+  return await tasksLock.acquire(key, async () => {
+    const task = tasks[key];
     if (!task) return;
 
     task.streamCount += 1;
@@ -194,9 +184,11 @@ export async function createReadStream(fullPath: string) {
   });
 }
 
-export async function onStreamEnded(fullPath: string) {
-  return await tasksLock.acquire(fullPath, async () => {
-    const task = tasks[fullPath];
+export async function onStreamEnded(fullPath: string, useWebm: boolean) {
+  const key = `${useWebm}${fullPath}`;
+
+  return await tasksLock.acquire(key, async () => {
+    const task = tasks[key];
     if (!task) return;
 
     task.streamCount -= 1;
@@ -206,20 +198,22 @@ export async function onStreamEnded(fullPath: string) {
         task.destroyTimer = undefined;
       }
       task.destroyTimer = setTimeout(() => {
-        removeTask(fullPath);
+        removeTask(fullPath, useWebm);
       }, 10000);
     }
   });
 }
 
-async function removeTask(fullPath: string) {
-  return await tasksLock.acquire(fullPath, () => {
-    const task = tasks[fullPath];
+async function removeTask(fullPath: string, useWebm: boolean) {
+  const key = `${useWebm}${fullPath}`;
+
+  return await tasksLock.acquire(key, () => {
+    const task = tasks[key];
     if (!task) return;
 
     console.log(`stopping ffmpeg for "${fullPath}"`);
     destroyTask(task);
 
-    tasks[fullPath] = undefined;
+    tasks[key] = undefined;
   });
 }

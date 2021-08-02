@@ -6,11 +6,16 @@ import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { isDirectory } from "./utils";
 
-export function useDirectoryIndex(app: Express, dirPath: string) {
+export function useDirectoryIndex(
+  app: Express,
+  dirPath: string,
+  useWebm: boolean
+) {
   app.all("*", async (request, response, next) => {
     if (!request.path.endsWith("/")) {
       response.redirect(
-        "/convert.mp4?path=" + encodeURIComponent(request.path)
+        `/convert.${useWebm ? "webm" : "mp4"}?path=` +
+          encodeURIComponent(request.path)
       );
       response.end();
       return;

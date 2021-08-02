@@ -3,17 +3,16 @@ import { Server } from "http";
 import { useDirectoryIndex } from "./directory";
 import { useMedia } from "./media";
 
-const PORT = parseInt(process.env.PORT ?? "3000");
 const app = express();
 
 export let server: Server | undefined = undefined;
 
-export function start(dirPath: string) {
+export function start(port: number, dirPath: string, useWebm: boolean) {
   // for redirecting /reencode/id -> /reencode/id/
   app.set("strict routing", true);
 
   useMedia(app, dirPath);
-  useDirectoryIndex(app, dirPath);
+  useDirectoryIndex(app, dirPath, useWebm);
 
   // default route
   app.use((_req, res, _next) => {
@@ -40,8 +39,8 @@ export function start(dirPath: string) {
     });
   });
 
-  server = app.listen(PORT, () =>
-    console.log(`Serving ${dirPath} on http://127.0.0.1:${PORT}/`)
+  server = app.listen(port, () =>
+    console.log(`Serving ${dirPath} on http://127.0.0.1:${port}/`)
   );
 }
 

@@ -1,11 +1,15 @@
-import { Express } from "express";
+import { Express, Request, Response } from "express";
 import path from "path";
 import pump from "pump";
 import { createReadStream, onStreamEnded, startTask } from "./tasks";
 import { isFile } from "./utils";
 
 export function useMedia(app: Express, dirPath: string) {
-  app.all("/convert.mp4", async (request, response, next) => {
+  const handle = async (
+    request: Request,
+    response: Response,
+    useWebm: boolean
+  ) => {
     const fail = () => {
       response.status(404).end();
     };
@@ -29,20 +33,20 @@ export function useMedia(app: Express, dirPath: string) {
     console.log(`${request.method} ${fullPath}`);
 
     try {
-      await startTask(fullPath);
+      await startTask(fullPath, useWebm);
     } catch {
       console.warn("failed to start ffmpeg");
-      onStreamEnded(fullPath);
+      onStreamEnded(fullPath, useWebm);
       response.status(500);
       response.end();
       return;
     }
 
-    response.type("mp4");
+    response.type(useWebm ? "webm" : "mp4");
     // response.header("Content-Length", `${1024 * 1024 * 1024}`);
 
     if (request.method === "GET") {
-      const readStream = await createReadStream(fullPath);
+      const readStream = await createReadStream(fullPath, useWebm);
       if (!readStream) {
         console.warn!("!readStream");
         response.status(500);
@@ -51,7 +55,7 @@ export function useMedia(app: Express, dirPath: string) {
       }
 
       pump(readStream, response, (err) => {
-        onStreamEnded(fullPath);
+        onStreamEnded(fullPath, useWebm);
         if (err) {
           // console.warn(err);
           response.status(500);
@@ -61,5 +65,14 @@ export function useMedia(app: Express, dirPath: string) {
     } else {
       response.end();
     }
-  });
+  };
+
+  app.all(
+    "/convert.mp4",
+    async (request, response) => await handle(request, response, false)
+  );
+  app.all(
+    "/convert.webm",
+    async (request, response) => await handle(request, response, true)
+  );
 }
