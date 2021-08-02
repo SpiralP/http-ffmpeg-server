@@ -20,7 +20,6 @@ export function setup() {
 
   let tmpPath: string | undefined = undefined;
   if (isPkg) {
-    console.log(__dirname, ffmpegPath);
     tmpPath = tmp.tmpNameSync({
       postfix: ".exe",
     });
@@ -40,10 +39,12 @@ export function setup() {
   }
 }
 
-function shutdown() {
+async function shutdown() {
+  console.log("cleaning up...");
+
   shutdownExpress();
 
-  destroyAll();
+  await destroyAll();
 
   if (usingTmpFFmpeg) {
     fs.rmSync(ffmpegPath);
