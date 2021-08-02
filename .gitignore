@@ -86,7 +86,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist
 
 # Gatsby files
 .cache/
@@ -121,8 +121,6 @@ dist
 
 # End of Node.gitignore
 
-/*.mkv
-/*.mp4
-index-linux
-index-macos
-index-win.exe
+*.mkv
+*.mp4
+*.exe
