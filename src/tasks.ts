@@ -39,7 +39,9 @@ export function setup() {
   }
 }
 
+let shuttingDown = false;
 async function shutdown() {
+  shuttingDown = true;
   console.log("cleaning up...");
 
   shutdownExpress();
@@ -84,7 +86,7 @@ async function destroyTask(task: Task) {
   capacitor.destroy();
 }
 
-export async function destroyAll() {
+async function destroyAll() {
   await Promise.all(
     Object.values(tasks).map(async (task) => {
       if (!task) return;
@@ -155,8 +157,9 @@ async function createTask(fullPath: string, useWebm: boolean): Promise<Task> {
 }
 
 export async function startTask(fullPath: string, useWebm: boolean) {
-  const key = `${useWebm}${fullPath}`;
+  if (shuttingDown) return;
 
+  const key = `${useWebm}${fullPath}`;
   const [ffmpegProcess] = await tasksLock.acquire(key, async () => {
     if (!tasks[key]) {
       const task = await createTask(fullPath, useWebm);
@@ -169,8 +172,9 @@ export async function startTask(fullPath: string, useWebm: boolean) {
 }
 
 export async function createReadStream(fullPath: string, useWebm: boolean) {
-  const key = `${useWebm}${fullPath}`;
+  if (shuttingDown) return;
 
+  const key = `${useWebm}${fullPath}`;
   return await tasksLock.acquire(key, async () => {
     const task = tasks[key];
     if (!task) return;
@@ -185,8 +189,9 @@ export async function createReadStream(fullPath: string, useWebm: boolean) {
 }
 
 export async function onStreamEnded(fullPath: string, useWebm: boolean) {
-  const key = `${useWebm}${fullPath}`;
+  if (shuttingDown) return;
 
+  const key = `${useWebm}${fullPath}`;
   return await tasksLock.acquire(key, async () => {
     const task = tasks[key];
     if (!task) return;
@@ -206,7 +211,6 @@ export async function onStreamEnded(fullPath: string, useWebm: boolean) {
 
 async function removeTask(fullPath: string, useWebm: boolean) {
   const key = `${useWebm}${fullPath}`;
-
   return await tasksLock.acquire(key, () => {
     const task = tasks[key];
     if (!task) return;
