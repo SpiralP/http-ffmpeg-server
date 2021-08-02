@@ -32,10 +32,14 @@ export function useMedia(app: Express, dirPath: string) {
       await startTask(fullPath);
     } catch {
       console.warn("failed to start ffmpeg");
+      onStreamEnded(fullPath);
       response.status(500);
       response.end();
       return;
     }
+
+    response.type("mp4");
+    // response.header("Content-Length", `${1024 * 1024 * 1024}`);
 
     if (request.method === "GET") {
       const readStream = await createReadStream(fullPath);
@@ -46,7 +50,6 @@ export function useMedia(app: Express, dirPath: string) {
         return;
       }
 
-      response.type("mp4");
       pump(readStream, response, (err) => {
         onStreamEnded(fullPath);
         if (err) {
@@ -56,7 +59,6 @@ export function useMedia(app: Express, dirPath: string) {
         response.end();
       });
     } else {
-      response.type("mp4");
       response.end();
     }
   });

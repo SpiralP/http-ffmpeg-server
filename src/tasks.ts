@@ -107,18 +107,24 @@ function escapeFilter(s: string) {
 }
 
 async function createTask(fullPath: string): Promise<Task> {
-  console.log(`starting new ffmpeg for ${fullPath}`);
+  console.log(`starting ffmpeg for "${fullPath}"`);
 
   const args: string[] = [
     ...commonOptions,
     "-i",
     fullPath,
+    // remove chapter info
+    "-map_chapters",
+    "-1",
+    "-map_metadata",
+    "-1",
     "-c:v",
     "libx264",
     "-pix_fmt",
     "yuv420p",
     "-movflags",
     "+faststart+frag_keyframe+empty_moov",
+    // quality
     "-crf",
     "20",
     "-c:a",
@@ -194,7 +200,7 @@ export async function onStreamEnded(fullPath: string) {
     if (!task) return;
 
     task.streamCount -= 1;
-    if (task.streamCount === 0) {
+    if (task.streamCount <= 0) {
       if (task.destroyTimer) {
         clearTimeout(task.destroyTimer);
         task.destroyTimer = undefined;
@@ -211,7 +217,7 @@ async function removeTask(fullPath: string) {
     const task = tasks[fullPath];
     if (!task) return;
 
-    console.log(`stopping ffmpeg for ${fullPath}`);
+    console.log(`stopping ffmpeg for "${fullPath}"`);
     destroyTask(task);
 
     tasks[fullPath] = undefined;
