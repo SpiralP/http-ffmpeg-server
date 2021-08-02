@@ -15,7 +15,7 @@ const isPkg =
 
 let ffmpegPath = ffmpegStaticPath;
 let usingTmpFFmpeg = false;
-export function setup() {
+export async function setup() {
   tmp.setGracefulCleanup();
 
   let tmpPath: string | undefined = undefined;
@@ -24,18 +24,26 @@ export function setup() {
       postfix: ".exe",
     });
 
-    pump(
-      fs.createReadStream(ffmpegStaticPath),
-      fs.createWriteStream(tmpPath),
-      (err) => {
-        if (err) throw err;
-        console.log("ffmpeg extracted!", tmpPath);
-        if (tmpPath) {
+    await new Promise((resolve, reject) => {
+      if (!tmpPath) throw "unreachable";
+
+      pump(
+        fs.createReadStream(ffmpegStaticPath),
+        fs.createWriteStream(tmpPath),
+        (err) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          if (!tmpPath) throw "unreachable";
+          console.log("ffmpeg extracted!", tmpPath);
           ffmpegPath = tmpPath;
           usingTmpFFmpeg = true;
+          resolve(undefined);
         }
-      }
-    );
+      );
+    });
   }
 }
 

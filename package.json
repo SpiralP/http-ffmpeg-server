@@ -12,7 +12,8 @@
     "start:dev": "cross-env NODE_ENV=development node ./dist/index.js",
     "dev": "yarn build:dev && yarn start:dev",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "pkg": "yarn build && pkg --compress GZip ."
   },
   "dependencies": {
     "async-lock": "^1.3.0",

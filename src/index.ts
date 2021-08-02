@@ -8,6 +8,8 @@ const useWebm = Boolean(process.env.USE_WEBM);
 const args = process.argv.slice(2);
 const dirPath = args[0] || ".";
 
-setupTasks();
+(async () => {
+  await setupTasks();
 
-startExpress(port, dirPath, useWebm);
+  startExpress(port, dirPath, useWebm);
+})();
