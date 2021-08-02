@@ -13,7 +13,7 @@
     "dev": "yarn build:dev && yarn start:dev",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install",
-    "pkg": "yarn build && pkg --compress GZip ."
+    "pkg": "yarn build && pkg --config pkg.config.json --compress GZip --output ./dist/http-ffmpeg-server ./dist/index.js"
   },
   "dependencies": {
     "async-lock": "^1.3.0",
@@ -41,14 +41,5 @@
     "esbuild": "^0.12.17",
     "husky": "^7.0.1",
     "typescript": "^4.3.5"
-  },
-  "pkg": {
-    "assets": [
-      "node_modules/ffmpeg-static/ffmpeg.exe"
-    ],
-    "targets": [
-      "node14-win-x64"
-    ],
-    "outputPath": "dist"
   }
 }

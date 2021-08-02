@@ -1,0 +1,5 @@
+{
+  "assets": ["node_modules/ffmpeg-static/ffmpeg.exe"],
+  "targets": ["node14-win-x64"],
+  "outputPath": "dist"
+}
