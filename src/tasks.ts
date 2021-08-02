@@ -199,7 +199,7 @@ export async function onStreamEnded(fullPath: string, useWebm: boolean) {
       }
       task.destroyTimer = setTimeout(() => {
         removeTask(fullPath, useWebm);
-      }, 10000);
+      }, 60000);
     }
   });
 }
