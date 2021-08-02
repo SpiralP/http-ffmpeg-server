@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOMServer from "react-dom/server";
 
 export function useDirectoryIndex(app: Express, dirPath: string) {
+  // TODO safely all dirs
   app.get("/", async (request, response) => {
     const filenames = await fs.promises.readdir(dirPath);
 

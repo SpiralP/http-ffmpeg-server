@@ -28,8 +28,6 @@ export function destroyAll() {
 }
 
 function shutdown() {
-  console.log("shutting down...");
-
   destroyAll();
 
   // Any sync or async graceful shutdown procedures can be run before exiting…
@@ -75,7 +73,7 @@ async function createTask(fullPath: string): Promise<Task | undefined> {
     "mp4",
     "pipe:3",
   ];
-  console.log(args.join('" "'));
+  // console.log(`"${args.join('" "')}"`);
 
   const ffmpegProcess = spawn(ffmpeg, args, {
     // cwd: this.dir.path,

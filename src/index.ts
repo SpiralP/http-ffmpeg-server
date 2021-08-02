@@ -3,8 +3,7 @@ import { useDirectoryIndex } from "./directory";
 import { useMedia } from "./media";
 
 const args = process.argv.slice(2);
-if (!args[0]) throw new Error("need first arg 'path'");
-const dirPath = args[0];
+const dirPath = args[0] || ".";
 
 const app = express();
 

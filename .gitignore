@@ -123,3 +123,6 @@ dist
 
 /*.mkv
 /*.mp4
+index-linux
+index-macos
+index-win.exe
