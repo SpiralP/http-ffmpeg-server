@@ -1,9 +1,9 @@
 {
-  "name": "http-ffmpeg",
+  "name": "http-ffmpeg-server",
   "version": "1.0.0",
   "license": "MIT",
   "bin": {
-    "http-ffmpeg": "./dist/index.js"
+    "http-ffmpeg-server": "./dist/index.js"
   },
   "scripts": {
     "start": "node ./dist/index.js",
