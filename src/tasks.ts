@@ -1,42 +1,97 @@
 import AsyncLock from "async-lock";
-import { ChildProcess, spawn } from "child_process";
-import ffmpeg from "ffmpeg-static";
+import execa from "execa";
+import ffmpegStaticPath from "ffmpeg-static";
+import fs from "fs";
 import { WriteStream } from "fs-capacitor";
 import pump from "pump";
 import { Readable } from "stream";
+import tmp from "tmp";
+import { shutdown as shutdownExpress } from "./express";
 import { commonOptions } from "./ffmpeg";
 import { sleep } from "./utils";
 
-const tasksLock = new AsyncLock();
+const isPkg =
+  __dirname.startsWith("C:\\snapshot\\") || __dirname.startsWith("/snapshot/");
 
-export type Task = {
-  ffmpegProcess: ChildProcess;
-  capacitor: WriteStream;
-  pump_promise: Promise<undefined>;
-  streamCount: number;
-  destroyTimer?: NodeJS.Timeout;
-};
-const tasks: Record<string, Task | undefined> = {};
+let ffmpegPath = ffmpegStaticPath;
+let usingTmpFFmpeg = false;
+export function setup() {
+  tmp.setGracefulCleanup();
 
-export function destroyAll() {
-  Object.values(tasks).forEach((task) => {
-    if (!task) return;
-    const { ffmpegProcess, capacitor } = task;
-    ffmpegProcess.kill();
-    capacitor.destroy();
-  });
+  let tmpPath: string | undefined = undefined;
+  if (isPkg) {
+    console.log(__dirname, ffmpegPath);
+    tmpPath = tmp.tmpNameSync({
+      postfix: ".exe",
+    });
+
+    pump(
+      fs.createReadStream(ffmpegStaticPath),
+      fs.createWriteStream(tmpPath),
+      (err) => {
+        if (err) throw err;
+        console.log("ffmpeg extracted!", tmpPath);
+        if (tmpPath) {
+          ffmpegPath = tmpPath;
+          usingTmpFFmpeg = true;
+        }
+      }
+    );
+  }
 }
 
 function shutdown() {
+  shutdownExpress();
+
   destroyAll();
 
-  // Any sync or async graceful shutdown procedures can be run before exiting…
-  process.exit(0);
+  if (usingTmpFFmpeg) {
+    fs.rmSync(ffmpegPath);
+  }
 }
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 process.on("SIGHUP", shutdown);
+
+const tasksLock = new AsyncLock();
+
+export type Task = {
+  ffmpegProcess: execa.ExecaChildProcess;
+  capacitor: WriteStream;
+  streamCount: number;
+  destroyTimer?: NodeJS.Timeout;
+};
+const tasks: Record<string, Task | undefined> = {};
+
+async function destroyTask(task: Task) {
+  const { ffmpegProcess, capacitor } = task;
+
+  if (task.destroyTimer) {
+    clearTimeout(task.destroyTimer);
+    task.destroyTimer = undefined;
+  }
+  task.streamCount = 0;
+
+  ffmpegProcess.kill("SIGTERM", {
+    forceKillAfterTimeout: 3000,
+  });
+  try {
+    await ffmpegProcess;
+  } catch {}
+
+  capacitor.destroy();
+}
+
+export async function destroyAll() {
+  await Promise.all(
+    Object.values(tasks).map(async (task) => {
+      if (!task) return;
+
+      await destroyTask(task);
+    })
+  );
+}
 
 function escapeFilter(s: string) {
   // https://ffmpeg.org/ffmpeg-filters.html#Notes-on-filtergraph-escaping
@@ -50,7 +105,7 @@ function escapeFilter(s: string) {
     .replace(/\;/g, "\\;");
 }
 
-async function createTask(fullPath: string): Promise<Task | undefined> {
+async function createTask(fullPath: string): Promise<Task> {
   console.log(`starting new ffmpeg for ${fullPath}`);
 
   const args: string[] = [
@@ -67,15 +122,15 @@ async function createTask(fullPath: string): Promise<Task | undefined> {
     "20",
     "-c:a",
     "aac",
-    "-vf",
-    `subtitles=filename=${escapeFilter(fullPath)}`,
+    // "-vf",
+    // `subtitles=filename=${escapeFilter(fullPath)}`,
     "-f",
     "mp4",
     "pipe:3",
   ];
   // console.log(`"${args.join('" "')}"`);
 
-  const ffmpegProcess = spawn(ffmpeg, args, {
+  const ffmpegProcess = execa(ffmpegPath, args, {
     // cwd: this.dir.path,
     stdio: [
       /* Standard: stdin, stdout, stderr */
@@ -87,57 +142,35 @@ async function createTask(fullPath: string): Promise<Task | undefined> {
     ],
   });
 
-  const exit_promise = new Promise((resolve) => {
-    ffmpegProcess.once("exit", () => {
-      resolve(undefined);
-    });
-  });
-
-  const exited = await Promise.race<Promise<boolean>>([
-    exit_promise.then(() => true),
-    sleep(1000).then(() => false),
-  ]);
-  if (exited) {
-    return undefined;
-  }
-
   const capacitor = new WriteStream();
 
   // @ts-ignore
   const pipe3: Readable = ffmpegProcess.stdio[3];
-  const pump_promise = new Promise<undefined>((resolve, reject) => {
-    pump(pipe3, capacitor, (err) => {
-      console.log("ffmpeg pump finished");
-      ffmpegProcess.kill();
 
-      if (err) {
-        reject(err);
-        return;
-      }
-      resolve(undefined);
-    });
+  pump(pipe3, capacitor, (err) => {
+    if (err) {
+      console.warn("ffmpeg pump", err);
+      return;
+    }
   });
 
   return {
     ffmpegProcess,
     capacitor,
-    pump_promise,
     streamCount: 0,
   };
 }
 
 export async function startTask(fullPath: string) {
-  return await tasksLock.acquire(fullPath, async () => {
+  const [ffmpegProcess] = await tasksLock.acquire(fullPath, async () => {
     if (!tasks[fullPath]) {
       const task = await createTask(fullPath);
-      if (!task) {
-        return false;
-      }
       tasks[fullPath] = task;
     }
-
-    return true;
+    return [tasks[fullPath]!.ffmpegProcess];
   });
+
+  await Promise.race([sleep(1000), ffmpegProcess]);
 }
 
 export async function createReadStream(fullPath: string) {
@@ -166,26 +199,20 @@ export async function onStreamEnded(fullPath: string) {
         task.destroyTimer = undefined;
       }
       task.destroyTimer = setTimeout(() => {
-        destroy(fullPath);
+        removeTask(fullPath);
       }, 10000);
     }
   });
 }
 
-async function destroy(fullPath: string) {
+async function removeTask(fullPath: string) {
   return await tasksLock.acquire(fullPath, () => {
     const task = tasks[fullPath];
     if (!task) return;
 
     console.log(`stopping ffmpeg for ${fullPath}`);
+    destroyTask(task);
 
-    task.ffmpegProcess.kill();
-    task.capacitor.destroy();
-    task.streamCount = 0;
-    if (task.destroyTimer) {
-      clearTimeout(task.destroyTimer);
-      task.destroyTimer = undefined;
-    }
     tasks[fullPath] = undefined;
   });
 }

@@ -22,8 +22,10 @@ export function useMedia(app: Express, dirPath: string) {
 
     console.log(`${request.method} ${fullPath}`);
 
-    const ok = await startTask(fullPath);
-    if (!ok) {
+    try {
+      await startTask(fullPath);
+    } catch {
+      console.warn("failed to start ffmpeg");
       response.status(500);
       response.end();
       return;
@@ -32,26 +34,24 @@ export function useMedia(app: Express, dirPath: string) {
     if (request.method === "GET") {
       const readStream = await createReadStream(fullPath);
       if (!readStream) {
+        console.warn!("!readStream");
         response.status(500);
         response.end();
         return;
       }
 
-      await new Promise((resolve, reject) => {
-        response.type("mp4");
-        pump(readStream, response, (err) => {
-          console.log("response pump finished");
-          onStreamEnded(fullPath);
-          if (err) {
-            reject(err);
-            return;
-          }
-          resolve(undefined);
-        });
+      response.type("mp4");
+      pump(readStream, response, (err) => {
+        onStreamEnded(fullPath);
+        if (err) {
+          // console.warn(err);
+          response.status(500);
+        }
+        response.end();
       });
     } else {
       response.type("mp4");
+      response.end();
     }
-    response.end();
   });
 }
