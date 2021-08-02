@@ -12,8 +12,8 @@ export function start(dirPath: string) {
   // for redirecting /reencode/id -> /reencode/id/
   app.set("strict routing", true);
 
-  useDirectoryIndex(app, dirPath);
   useMedia(app, dirPath);
+  useDirectoryIndex(app, dirPath);
 
   // default route
   app.use((_req, res, _next) => {

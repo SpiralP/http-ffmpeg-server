@@ -2,21 +2,27 @@ import { Express } from "express";
 import path from "path";
 import pump from "pump";
 import { createReadStream, onStreamEnded, startTask } from "./tasks";
-import { exists } from "./utils";
+import { isFile } from "./utils";
 
 export function useMedia(app: Express, dirPath: string) {
-  app.all("*", async (request, response) => {
-    const safePath = path.normalize(decodeURIComponent(request.path)).slice(1);
+  app.all("/convert.mp4", async (request, response, next) => {
+    const fail = () => {
+      response.status(404).end();
+    };
+    const queryPath = request.query.path;
+    if (!queryPath || typeof queryPath !== "string") {
+      fail();
+      return;
+    }
+    const safePath = path.normalize(decodeURIComponent(queryPath)).slice(1);
     if (safePath.startsWith(".") || safePath.startsWith("/")) {
-      response.status(404);
-      response.end();
+      fail();
       return;
     }
 
     const fullPath = path.join(dirPath, safePath);
-    if (!(await exists(fullPath))) {
-      response.status(404);
-      response.end();
+    if (!(await isFile(fullPath))) {
+      fail();
       return;
     }
 
