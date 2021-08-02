@@ -1,11 +1,20 @@
-export const commonOptions: string[] = [
+export const commonOptions = [
   "-hide_banner",
   "-loglevel",
   "warning",
   // "-stats",
 ];
 
+export const commonConvertOptions = [
+  // remove chapter info
+  "-map_chapters",
+  "-1",
+  "-map_metadata",
+  "-1",
+];
+
 export const mp4Options = [
+  ...commonConvertOptions,
   "-c:v",
   "libx264",
   "-pix_fmt",
@@ -24,6 +33,7 @@ export const mp4Options = [
 ];
 
 export const webmOptions = [
+  ...commonConvertOptions,
   "-c:v",
   "libvpx",
   // quality

@@ -123,11 +123,6 @@ async function createTask(fullPath: string, useWebm: boolean): Promise<Task> {
     ...commonOptions,
     "-i",
     fullPath,
-    // remove chapter info
-    "-map_chapters",
-    "-1",
-    "-map_metadata",
-    "-1",
     ...(useWebm ? webmOptions : mp4Options),
     "pipe:3",
   ];
